@@ -6,7 +6,7 @@ from pygame.locals import *
 import sys
 import numpy as np
 import serial
-import io
+import subprocess
 
 
 SCREEN_SIZE = (800, 600)
@@ -30,9 +30,6 @@ def main():
     screen = pygame.display.set_mode(SCREEN_SIZE, HWSURFACE|OPENGL|DOUBLEBUF) 
 
     glutInit(sys.argv)
-    #glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
-    #glutInitWindowSize(400,400)
-    #glutCreateWindow(name)
 
     resize(*SCREEN_SIZE)
 
@@ -40,18 +37,6 @@ def main():
     glShadeModel(GL_SMOOTH) # GL_FLAT?
     glEnable(GL_CULL_FACE)
     glEnable(GL_DEPTH_TEST)
-
-    #glEnable(GL_LIGHTING)
-
-    #lightZeroPosition = [10.,4.,10.,1.]
-    #lightZeroColor = [0.8,1.0,0.8,1.0] #green tinged
-    #glLightfv(GL_LIGHT0, GL_POSITION, lightZeroPosition)
-    #glLightfv(GL_LIGHT0, GL_DIFFUSE, lightZeroColor)
-    #glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 0.1)
-    #glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.05)
-    #glEnable(GL_LIGHT0)
-    #glMatrixMode(GL_PROJECTION)
-    #gluPerspective(40.,1.,1.,40.)
     glMatrixMode(GL_MODELVIEW)
     gluLookAt(0,0,10,
               0,0,0,
@@ -59,6 +44,7 @@ def main():
     glPushMatrix()
     rotX = rotY = 0
 
+    subprocess.call(['sudo', 'chmod', '777', '/dev/ttyACM0'])
     ser = serial.Serial("/dev/ttyACM0", timeout=0)
 
     lines = []
@@ -93,20 +79,16 @@ def main():
             elif event.type == KEYDOWN:
                 if event.key == K_LEFT:
                     print "left" + str(i)
-                    #rotM = getYRotMatrix(-np.pi/10)
                     rotX += -np.pi/10;
                 if event.key == K_RIGHT: 
                     print "right" + str(i)
-                    #rotM = getYRotMatrix(np.pi/10)
                     rotX += np.pi/10;
                 if event.key == K_UP:
                     print "up" + str(i)
                     rotY += np.pi/10;
-                    #rotM = getXRotMatrix(np.pi/10)
                 if event.key == K_DOWN:
                     print "down" + str(i)
                     rotY += -np.pi/10;
-                    #rotM = getXRotMatrix(-np.pi/10)
                 if event.key == K_ESCAPE:
                     pygame.event.post(pygame.event.Event(QUIT))
         display(rotX, rotY)
