@@ -129,8 +129,12 @@ def main():
     U, s, V = np.linalg.svd(A)
 
     globalQuat = eulerToQuaternion(0, 0, 0)
-   
+    bufferedLines = [] 
+
+    oneSensor = False 
+
     while True:
+        x1 = y1 = x2 = y2 = 0
         lines = ser.readlines()
         if len(lines) > 0:
             if incomplete_line:
@@ -141,49 +145,69 @@ def main():
                 lines = lines[:-1]
             else:
                 incomplete_line = None
-        line = buffered_lines[0]
-            for line in lines:
+            bufferedLines.extend(lines)
+
+        if len(bufferedLines) > 0:
+            line = bufferedLines[0]
+            bufferedLines = bufferedLines[1:]
+            #print line
+            ss = line.split()
+            if len(ss) is not 6:
+                print "problem ss len is not 6!"
                 print line
-                ss = line.split()
-                x = y = 0
-                if len(ss) is not 6:
-                    print "problem ss len is not 6!"
-                else:
-                    x1 = int(ss[2])
-                    y1 = int(ss[3])
-                    x2 = int(ss[4])
-                    y2 = int(ss[5])
-                    rot1X += x1
-                    rot1Y -= y1
-                    rot2X += x2
-                    rot2Y += y2
+            else:
+                x1 = int(ss[2])
+                y1 = int(ss[3])
+                x2 = int(ss[4])
+                y2 = int(ss[5])
 
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == KEYDOWN:
-                if event.key == K_LEFT:
-                    print "left" + str(i)
-                    rot2X += -np.pi/2;
-                if event.key == K_RIGHT: 
-                    print "right" + str(i)
-                    rot2X += np.pi/2;
-                if event.key == K_UP:
-                    print "up" + str(i)
-                    rot2Y += np.pi/2;
-                if event.key == K_DOWN:
-                    print "down" + str(i)
-                    rot2Y += -np.pi/2;
-            if event.type == KEYDOWN and event.key == K_ESCAPE:
-                pygame.event.post(pygame.event.Event(QUIT))
-        b = np.array([rot1X, rot1Y, 0, rot2X, rot2Y, 0])
-        w = U[:,0].dot(b)*V[:,0]/s[0]+U[:,1].dot(b)*V[:,1]/s[1]+U[:,2].dot(b)*V[:,2]/s[2]
-        # quaternion representing the change
+#            elif event.type == KEYDOWN:
+#                if event.key == K_LEFT:
+#                    print "left" + str(i)
+#                    rot2X += -np.pi/2;
+#                if event.key == K_RIGHT: 
+#                    print "right" + str(i)
+#                    rot2X += np.pi/2;
+#                if event.key == K_UP:
+#                    print "up" + str(i)
+#                    rot2Y += np.pi/2;
+#                if event.key == K_DOWN:
+#                    print "down" + str(i)
+#                    rot2Y += -np.pi/2;
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    pygame.event.post(pygame.event.Event(QUIT))
+                if event.key == K_1:
+                    oneSensor = True
+                    print "Switching to one sensor"
+                if event.key == K_2:
+                    oneSensor = False
+                    print "Switching to two sensors"
+
+                # quaternion representing the change
         #w = [rot2X, rot2Y, 0]
-        rot2X = rot2Y = 0
-        rot1X = rot1Y = 0
-        quat = eulerToQuaternion(w[0], w[1], w[2])
+        #if x1 != 0 or y1 != 0 or x2 != 0 or y2 != 0:
+        #    print str(map(np.degrees, w))
+
+        if oneSensor:
+            quat = eulerToQuaternion(-y2, 0, -x2)
+
+        elif x2 == 0 and y2 == 0:
+            quat = eulerToQuaternion(y1, 0, x1)
+
+        elif x1 == 0 and y1 == 0:
+            quat = eulerToQuaternion(-y2, 0, -x2)
+        else:
+            b = np.array([x1, y1, 0, x2, y2, 0])
+            w =   U[:,0].dot(b) * V[:,0]/s[0]
+            + U[:,1].dot(b) * V[:,1]/s[1]
+            + U[:,2].dot(b) * V[:,2]/s[2]
+
+            quat = eulerToQuaternion(w[1], w[2], w[0])
 
         # rotate the global quaternion
         globalQuat = multiplyQuaternions(globalQuat, quat)
@@ -193,7 +217,7 @@ def main():
         #display((w[0], w[1], w[2]))
 
         pygame.display.flip()
-        clock.tick(30)
+        #clock.tick(30)
     return
 
 def display(quaternion):
