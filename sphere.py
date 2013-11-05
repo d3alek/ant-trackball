@@ -117,7 +117,7 @@ def main():
     lines = []
     incomplete_line = None
 
-    sensor1Pos = [0, 1/np.sqrt(2), -1/np.sqrt(2)]
+    sensor1Pos = [0, -1, 0]
     sensor2Pos = [0, -1/np.sqrt(2), -1/np.sqrt(2)]
 
     x1, y1, z1 = sensor1Pos
@@ -127,6 +127,10 @@ def main():
                   y2, -x2, 0]).reshape([6,3])
 
     U, s, V = np.linalg.svd(A)
+
+    print "U=", str(U)
+    print "s=", str(s)
+    print "V=", str(V)
 
     globalQuat = eulerToQuaternion(0, 0, 0)
     bufferedLines = [] 
@@ -150,16 +154,20 @@ def main():
         if len(bufferedLines) > 0:
             line = bufferedLines[0]
             bufferedLines = bufferedLines[1:]
-            #print line
+            print line
             ss = line.split()
             if len(ss) is not 6:
                 print "problem ss len is not 6!"
                 print line
             else:
-                x1 = int(ss[2])
-                y1 = int(ss[3])
-                x2 = int(ss[4])
-                y2 = int(ss[5])
+                try:
+                    x1 = int(ss[2])
+                    y1 = int(ss[3])
+                    x2 = int(ss[4])
+                    y2 = int(ss[5])
+                except ValueError:
+                    x1 = y1 = x2 = y2 = 0
+                    print "ValueError"
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -196,18 +204,21 @@ def main():
         if oneSensor:
             quat = eulerToQuaternion(-y2, 0, -x2)
 
-        elif x2 == 0 and y2 == 0:
-            quat = eulerToQuaternion(y1, 0, x1)
+        #elif x2 == 0 and y2 == 0:
+        #    quat = eulerToQuaternion(y1, 0, x1)
 
-        elif x1 == 0 and y1 == 0:
-            quat = eulerToQuaternion(-y2, 0, -x2)
+        #elif x1 == 0 and y1 == 0:
+        #    quat = eulerToQuaternion(-y2, 0, -x2)
         else:
-            b = np.array([x1, y1, 0, x2, y2, 0])
-            w =   U[:,0].dot(b) * V[:,0]/s[0]
-            + U[:,1].dot(b) * V[:,1]/s[1]
-            + U[:,2].dot(b) * V[:,2]/s[2]
+            b = np.array([x1, y1, 0, x2, -y2, 0])
+            w =  U[:,0].dot(b) * V[:,0]/s[0] + U[:,1].dot(b) * V[:,1]/s[1] + U[:,2].dot(b) * V[:,2]/s[2]
 
-            quat = eulerToQuaternion(w[1], w[2], w[0])
+            #print str(w)
+            
+            if w[2] != 0 or w[0] != 0 or w[1] != 0:
+                print "pitch", w[1], "yaw", w[0], "roll", w[2]
+
+            quat = eulerToQuaternion(w[1], w[0], w[2])
 
         # rotate the global quaternion
         globalQuat = multiplyQuaternions(globalQuat, quat)
