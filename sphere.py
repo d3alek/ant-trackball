@@ -273,7 +273,7 @@ def main():
             if (w[2] != 0 and not np.isnan(w[2])) or (w[0] != 0 and not np.isnan(w[0])) or (w[1] !=0 and not np.isnan(w[1])):
                 print "pitch", w[1], "yaw", w[0], "roll", w[2]
                 #TODO maybe divide /2 in calibration?
-                quat = eulerToQuaternion(w[0]/2, w[1]/2, w[2]/2)
+                quat = eulerToQuaternion(w[0]/2, w[2]/2, w[1]/2)
                 globalQuat = multiplyQuaternions(globalQuat, quat)
         # rotate the global quaternion
 
