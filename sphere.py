@@ -122,8 +122,8 @@ def main():
 #    sensor1Pos = np.dot(2, [0, 1/np.sqrt(2), -1/np.sqrt(2)])
 #    sensor2Pos = np.dot(2, [0, -1/np.sqrt(2), -1/np.sqrt(2)])
 
-    sensor1Pos = [np.sqrt(3)/2, 0, -1/2.]
-    sensor2Pos = [-np.sqrt(3)/4, 3/4., -1/2.]
+    sensor1Pos = np.dot(2, [np.sqrt(3)/2, 0, -1/2.])
+    sensor2Pos = np.dot(2, [-np.sqrt(3)/4, -3/4., -1/2.])
  
 
     x1, y1, z1 = sensor1Pos
@@ -273,7 +273,7 @@ def main():
             if (w[2] != 0 and not np.isnan(w[2])) or (w[0] != 0 and not np.isnan(w[0])) or (w[1] !=0 and not np.isnan(w[1])):
                 print "pitch", w[1], "yaw", w[0], "roll", w[2]
                 #TODO maybe divide /2 in calibration?
-                quat = eulerToQuaternion(w[0]/2, w[2]/2, w[1]/2)
+                quat = eulerToQuaternion(w[0], w[2], w[1])
                 globalQuat = multiplyQuaternions(globalQuat, quat)
         # rotate the global quaternion
 
