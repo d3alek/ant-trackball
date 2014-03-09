@@ -124,15 +124,23 @@ def main():
 
     sensor1Pos = np.dot(2, [np.sqrt(3)/2, 0, -1/2.])
     sensor2Pos = np.dot(2, [-np.sqrt(3)/4, -3/4., -1/2.])
+    sensor3Pos = np.dot(2, [-np.sqrt(3)/4, 3/4., -1/2.
  
 
     x1, y1, z1 = sensor1Pos
     x2, y2, z2 = sensor2Pos
+    x3, y3, z3 = sensor3Pos
 
     A = np.array([0, z1, -y1, -z1, 0, x1, y1, -x1, 0, 0, z2, -y2, -z2, 0, x2,
                   y2, -x2, 0]).reshape([6,3])
+    A3 = np.array([0, z1, -y1, -z1, 0, x1, y1, -x1, 0, 0, z2, -y2, -z2, 0, x2,
+                  y2, -x2, 0, 0, z3, -y3, -z3, 0, x3, y3, -x3, 0]).reshape([9,3])
+
+
 
     U, s, V = np.linalg.svd(A)
+    U3, s3, V3 = np.linalg.svd(A3)
+
     inv = lambda i: 0 if i == 0 else 1./i
     sInv = [inv(i) for i in s]
 
@@ -202,12 +210,12 @@ def main():
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     pygame.event.post(pygame.event.Event(QUIT))
-                if event.key == K_1:
-                    oneSensor = True
-                    print "Switching to one sensor"
                 if event.key == K_2:
-                    oneSensor = False
+                    TWO_SENSORS = True
                     print "Switching to two sensors"
+                if event.key == K_3:
+                    TWO_SENSORS = False 
+                    print "Switching to three sensors"
                 if event.key == K_8:
                     ser.write("1\n")
                 if event.key == K_9:
