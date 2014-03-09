@@ -148,7 +148,7 @@ def main():
             #z2 = calcZOnSphere(x2, y2)
             #z3 = calcZOnSphere(x3, y3)
             #b = np.array([z1, x1, y1, z2, x2, y2, z3, x3, y3])
-            b = np.array([0, x1, y1, 0, x2, y2, 0, x3, y3])
+            b = np.array([0, x1, y1, 0.5, x2, y2, 0.5, x3, y3])
             w =  U3[:,0].dot(b) * V3[:,0] * sInv3[0] + U3[:,1].dot(b) * V3[:,1] * sInv3[1] + U3[:,2].dot(b) * V3[:,2] * sInv3[2]
 
         if (w[2] != 0 and not np.isnan(w[2])) or (w[0] != 0 and not np.isnan(w[0])) or (w[1] !=0 and not np.isnan(w[1])):
@@ -169,12 +169,13 @@ def main():
             lastPoint = antPath[-1]
 
 
-            x, y, z = np.cross(w, topOfSphere)
-            pitch = y
-            yaw = x
-            roll = z
-            print "xyz=", x, y, z
+            x, y, z = np.cross([pitch, yaw, roll], topOfSphere)
+            #pitch = y
+            #yaw = z
+            #roll = x
+            #print "xyz=", x, y, z
 
+            #facingAngl = 0 
             facingAngl = yaw
             antPath += [translatePoint(rotatePoint((pitch, -roll),
                                                    facingAngl), lastPoint)]
