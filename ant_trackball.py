@@ -42,6 +42,8 @@ def main():
     sensor2Pos = np.dot(1, [np.sqrt(3)/2, 0, -1/2.])
     sensor3Pos = np.dot(1, [-np.sqrt(3)/4, -3/4., -1/2.])
 
+    topOfSphere = np.dot(1, [0, 0, 1])
+
     x1, y1, z1 = sensor1Pos
     x2, y2, z2 = sensor2Pos
     x3, y3, z3 = sensor2Pos
@@ -165,17 +167,19 @@ def main():
                 roll = w[1]
             print w
             lastPoint = antPath[-1]
-            #print "pitch", pitch, "yaw", yaw, "roll", roll 
-            #facingAngl += np.radians(yaw)
-            facingAngl += np.radians(yaw)
-            #antPath += [(lastPoint[0] + np.cos(facingAngl)*roll +
-            #             np.sin(facingAngl)*pitch,
-            #             lastPoint[1] - (np.cos(facingAngl)*pitch +
-            #                             np.sin(facingAngl)*roll))]
+
+
+            x, y, z = np.cross(w, topOfSphere)
+            pitch = y
+            yaw = x
+            roll = z
+            print "xyz=", x, y, z
+
+            facingAngl = yaw
             antPath += [translatePoint(rotatePoint((pitch, -roll),
                                                    facingAngl), lastPoint)]
-            #antPath += [translatePoint((pitch, -roll), lastPoint)]
-            #print antPath[-1]
+
+
 
         if len(antPath) > 1:
             pygame.draw.lines(screen, (0, 0, 0), False, antPath)
