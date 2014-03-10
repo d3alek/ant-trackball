@@ -25,6 +25,7 @@ ant_trackball.setServoAngle(trackball.SERVO_YAW, 0, 1);
 mCommandCompleted.acquire()
 ant_trackball.setServoAngle(trackball.SERVO_PITCH, 0, 1);
 mCommandCompleted.acquire()
+ant_trackball.getPitchYawRoll()
 
 print "Initialized"
 
