@@ -14,7 +14,9 @@ SERVO_YAW = Servo(0)
 SERVO_PITCH = Servo(1) 
 
 COMMAND_COMPLETED = 'command completed'
+SERVO_SPEED_SET = 'servo speed set' 
 reCommandCompleted = re.compile(r'Command completed')
+reServoSpeedSet = re.compile(r'Servo speed set to')
 
 class CommandCompletedListener:
     def commandCompleted(self, pitchYawRoll):
@@ -34,7 +36,7 @@ class Trackball():
     
     def __init__(self):
         # Default mbed serial, non-blocking
-        self.serial = serial.Serial("/dev/ttyACM0", timeout=0)
+        self.serial = serial.Serial("/dev/ttyACM3", timeout=0)
         self.lines = []
         self.incomplete_line = None
         self.bufferedLines = []
@@ -75,7 +77,11 @@ class Trackball():
                 continue
             elif velocities == COMMAND_COMPLETED:
                 if self.commandCompletedListener != None:
-                    self.commandCompletedListener.commandCompleted(self.bufferedPitchYawRoll)
+                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities, self.bufferedPitchYawRoll)
+                continue
+            elif velocities == SERVO_SPEED_SET:
+                if self.commandCompletedListener != None:
+                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities, self.bufferedPitchYawRoll)
                 continue
 
             x1, y1, x2, y2, x3, y3 = velocities
@@ -129,6 +135,9 @@ class Trackball():
         self.bufferedVelocities = []
         self.bufferedPitchYawRoll = []
 
+    def setServoSpeed(self, speed):
+        self.serial.write("s " + str(speed) + "\n")
+
     def setServoAngle(self, servo, angleDeg, speed):
         if servo.__class__ != Servo:
             print "Wrong type of first argument - should be servo"
@@ -158,10 +167,14 @@ class Trackball():
             self.bufferedLines = bufferedLines
             if reCommandCompleted.search(line):
                 return COMMAND_COMPLETED
+            if reServoSpeedSet.search(line):
+                print "ServoSpeedSet:", line
+                return SERVO_SPEED_SET
             ss = line.split()
             if len(ss) is not 8:
-                print "problem ss len is not 6!"
-                print line
+                None
+                #print "problem ss len is not 6!"
+                #print line
             else:
                 try:
                     x1 = int(ss[2])
