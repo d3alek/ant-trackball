@@ -14,15 +14,21 @@ SERVO_YAW = Servo(0)
 SERVO_PITCH = Servo(1) 
 
 COMMAND_COMPLETED = 'command completed'
+COMMAND_STARTED = 'command started'
 SERVO_SPEED_SET = 'servo speed set' 
-reCommandCompleted = re.compile(r'Command completed')
+reCommandCompleted = re.compile(r'Command completed (\d+)')
+reCommandStarted = re.compile(r'Command started (\d+)')
 reServoSpeedSet = re.compile(r'Servo speed set to')
 
+
 class CommandCompletedListener:
-    def commandCompleted(self, pitchYawRoll):
+    def commandCompleted(self, velocities, pitchYawRoll, t):
         pass
 
 class Trackball():
+    
+    bufferedPitchYawRoll = []
+    bufferedVelocities = []
 
     class TrackballThread(threading.Thread):
         def __init__(self, parent):
@@ -33,28 +39,40 @@ class Trackball():
             self.parent._start();
 
     thread = None
+
+    sensorNum = 3
     
-    def __init__(self):
+    def __init__(self, zRotAngle = 0):
         # Default mbed serial, non-blocking
-        self.serial = serial.Serial("/dev/ttyACM3", timeout=0)
+        self.zRotAngle = zRotAngle
+        self.serial = serial.Serial("/dev/ttyACM0", timeout=0)
         self.lines = []
         self.incomplete_line = None
         self.bufferedLines = []
 
         self.topOfSphere = np.array([0, 0, 1])
 
-        sensor1Pos = np.array([np.sqrt(3)/2, 0, -1/2.])
-        sensor2Pos = np.array([-np.sqrt(3)/4, -3/4., -1/2.])
-        sensor3Pos = np.array([-np.sqrt(3)/4, 3/4., -1/2.])
-        x1, y1, z1 = sensor1Pos
-        x2, y2, z2 = sensor2Pos
-        x3, y3, z3 = sensor3Pos
-        self.A = np.array([0, z1, -y1, -z1, 0, x1, y1, -x1, 0, 0, z2, -y2, -z2, 0, x2, y2, -x2, 0, 0, z3, -y3, -z3, 0, x3, y3, -x3, 0]).reshape([9,3])
-        self.U, self.s, self.V = np.linalg.svd(self.A)
-        inv = lambda i: 0 if i == 0 else 1./i
-        self.sInv = [inv(i) for i in self.s]
+        self.sensor1Pos = np.array([np.sqrt(3)/2, 0, -1/2.])
+        self.sensor2Pos = np.array([-np.sqrt(3)/4, -3/4., -1/2.])
+        self.sensor3Pos = np.array([-np.sqrt(3)/4, 3/4., -1/2.])
+        self.initSVD(zRotAngle)
         self.dataLock = threading.Lock()
         self.commandCompletedListener = None
+        self.processedLines = []
+
+    def initSVD(self, zRotAngle):
+        x1, y1, z1 = rotateDeg(self.sensor1Pos, zRotAngle)
+        x2, y2, z2 = rotateDeg(self.sensor2Pos, zRotAngle)
+        x3, y3, z3 = rotateDeg(self.sensor3Pos, zRotAngle)
+        self.A = np.array([0, z1, -y1, -z1, 0, x1, y1, -x1, 0, 0, z2, -y2, -z2, 0, x2, y2, -x2, 0, 0, z3, -y3, -z3, 0, x3, y3, -x3, 0]).reshape([9,3])
+        self.A2 = np.array([0, z1, -y1, -z1, 0, x1, y1, -x1, 0, 0, z2, -y2, -z2,
+                            0, x2, y2, -x2, 0]).reshape([6,3])
+        self.U, self.s, self.V = np.linalg.svd(self.A)
+        self.U2, self.s2, self.V2 = np.linalg.svd(self.A2)
+        inv = lambda i: 0 if i == 0 else 1./i
+        self.sInv = [inv(i) for i in self.s]
+        self.sInv2 = [inv(i) for i in self.s2]
+
 
     def start(self):
         if (self.thread != None):
@@ -69,33 +87,60 @@ class Trackball():
         self.running = True 
         self._clearBuffers()
         
-        A, U, sInv, V = self.A, self.U, self.sInv, self.V
+        #A, U, sInv, V = self.A, self.U, self.sInv, self.V
+        #zRotAngle = self.zRotAngle
 
         while (self.running):
+            A, U, sInv, V = self.A, self.U, self.sInv, self.V
+            zRotAngle = self.zRotAngle
+
+
             velocities = self._processInput()
             if velocities == None:
                 continue
-            elif velocities == COMMAND_COMPLETED:
-                if self.commandCompletedListener != None:
-                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities, self.bufferedPitchYawRoll)
-                continue
+            elif len(velocities) == 2:
+                t = velocities[1]
+                if velocities[0] == COMMAND_COMPLETED:
+                    if self.commandCompletedListener != None:
+                        self.commandCompletedListener.commandCompleted(self.bufferedVelocities,
+                                                                       self.bufferedPitchYawRoll,t)
+                    continue
+                elif velocities[0] == COMMAND_STARTED:
+                     if self.commandCompletedListener != None:
+                        self.commandCompletedListener.commandStarted(t)
+                     continue
+                    
             elif velocities == SERVO_SPEED_SET:
                 if self.commandCompletedListener != None:
-                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities, self.bufferedPitchYawRoll)
+                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities,
+                                                                   self.bufferedPitchYawRoll,
+                                                                  -1)
                 continue
 
             x1, y1, x2, y2, x3, y3 = velocities
+
+            self.dataLock.acquire()
 
             wVx1, wVy1, wVz1 = (y2/2., -x2, y2*np.sqrt(3)/2.)
             wVx2, wVy2, wVz2 = (y3/2., -x3, y3*np.sqrt(3)/2.)
             wVx3, wVy3, wVz3 = (y1/2., -x1, y1*np.sqrt(3)/2.)
 
-            wVx2, wVy2, wVz2 = rotateDeg([wVx2, wVy2, wVz2], -120)
-            wVx3, wVy3, wVz3 = rotateDeg([wVx3, wVy3, wVz3], 120)
+            wVx2, wVy2, wVz2 = rotateDeg([wVx2, wVy2, wVz2], -120 + zRotAngle)
+            wVx3, wVy3, wVz3 = rotateDeg([wVx3, wVy3, wVz3], 120 + zRotAngle)
 
-            b = np.array([wVx1, wVy1, wVz1, wVx2, wVy2, wVz2, wVx3, wVy3, wVz3])
+            if self.sensorNum == 3:
 
-            w =  U[:,0].dot(b) * V[:,0] * sInv[0] + U[:,1].dot(b) * V[:,1] * sInv[1] + U[:,2].dot(b) * V[:,2] * sInv[2]
+                b = np.array([wVx1, wVy1, wVz1, wVx2, wVy2, wVz2, wVx3, wVy3, wVz3])
+
+                w =  U[:,0].dot(b) * V[:,0] * sInv[0] + U[:,1].dot(b) * V[:,1] * sInv[1] + U[:,2].dot(b) * V[:,2] * sInv[2]
+            
+            elif self.sensorNum == 2:
+                U2, V2, sInv2 = self.U2, self.V2, self.sInv2
+                b = np.array([wVx1, wVy1, wVz1, wVx2, wVy2, wVz2])
+                w =  U2[:,0].dot(b) * V2[:,0] * sInv2[0] + U2[:,1].dot(b) * V2[:,1] * sInv2[1] + U2[:,2].dot(b) * V2[:,2] * sInv2[2]
+
+            else:
+                print "Not supported sensorNum", self.sensorNum
 
             #l = np.sqrt(w[0]**2 + w[1]**2 + w[2]**2)
             #w = [w[0]/l, w[1]/l, w[2]/l]
@@ -104,12 +149,21 @@ class Trackball():
             roll, pitch, yaw = np.cross(w, self.topOfSphere)
             _, yaw, _ = np.cross(w, (1, 0, 0))
 
-            self.dataLock.acquire()
             self.bufferedVelocities += [velocities]
             self.bufferedPitchYawRoll += [(pitch, yaw, roll)]
             self.dataLock.release()
-            time.sleep(1/30.)
+            time.sleep(1/100.)
 
+    def setSensorNum(self, num):
+        if self.sensorNum is not num:
+            self.dataLock.acquire()
+            self.sensorNum = num
+            if num == 2:
+                self.zRotAngle -= 180
+            else:
+                self.zRotAngle += 180
+            self.initSVD(self.zRotAngle)
+            self.dataLock.release()
 
     def stop(self):
         self.running = False
@@ -163,12 +217,16 @@ class Trackball():
 
         if len(bufferedLines) > 0:
             line = bufferedLines[0]
+            self.processedLines += [line]
             bufferedLines = bufferedLines[1:]
             self.bufferedLines = bufferedLines
+            if reCommandStarted.search(line):
+                t = int(reCommandStarted.search(line).group(1))
+                return (COMMAND_STARTED, t)
             if reCommandCompleted.search(line):
-                return COMMAND_COMPLETED
+                t = int(reCommandCompleted.search(line).group(1))
+                return (COMMAND_COMPLETED, t)
             if reServoSpeedSet.search(line):
-                print "ServoSpeedSet:", line
                 return SERVO_SPEED_SET
             ss = line.split()
             if len(ss) is not 8:
