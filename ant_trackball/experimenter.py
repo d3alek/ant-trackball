@@ -175,6 +175,24 @@ class Speedometer(Command):
         print "S=", self.distance, "t=", t, "V(m/s)=", self.distance/t
         mCommandCompleted.release()
 
+class Max(Command):
+    def run(self):
+        time.sleep(2)
+        #mPitchYawRoll = ant_trackball.getPitchYawRoll()
+        accumPoints = accumulate(mPitchYawRoll)
+        Xs = map(lambda points: points[0], accumPoints)
+        Ys = map(lambda points: points[1], accumPoints)
+        Zs = map(lambda points: points[2], accumPoints)
+
+        print "Max:", max(Xs), max(Ys), max(Zs)
+        mCommandCompleted.release()
+
+class Clear(Command):
+    def run(self):
+        mPitchYawRoll = []
+        ant_trackball.getPitchYawRoll()
+        mCommandCompleted.release()
+
 def runCommandSequence(commandSequence):
     init()
     for command in commandSequence:
@@ -192,7 +210,10 @@ def speedTest():
                         Speedometer(np.pi*0.005)])
 
 def squareTest():
-    seq = [Speed(5), ServoPitch(-45), ServoYaw(45), ServoPitch(45), ServoYaw(90), ServoPitch(0)] + [ServoPitch(45), ServoYaw(45), ServoPitch(-45), ServoYaw(0), ServoPitch(0)] + [GraphMovement()]
+    seq = [Speed(5), ServoPitch(-45), ServoYaw(45), ServoPitch(45),
+           ServoYaw(90), ServoPitch(0)] + [ServoPitch(45), ServoYaw(45),
+                                           ServoPitch(-45), ServoYaw(0),
+                                           ServoPitch(0)] + [GraphMovementXY()]
     runCommandSequence(seq)
 
 def xTest(speed, sensorNum, n):

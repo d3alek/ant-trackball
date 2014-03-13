@@ -45,7 +45,7 @@ class Trackball():
     def __init__(self, zRotAngle = 0):
         # Default mbed serial, non-blocking
         self.zRotAngle = zRotAngle
-        self.serial = serial.Serial("/dev/ttyACM0", timeout=0)
+        self.serial = serial.Serial("/dev/ttyACM1", timeout=0)
         self.lines = []
         self.incomplete_line = None
         self.bufferedLines = []
@@ -102,8 +102,8 @@ class Trackball():
                 t = velocities[1]
                 if velocities[0] == COMMAND_COMPLETED:
                     if self.commandCompletedListener != None:
-                        self.commandCompletedListener.commandCompleted(self.bufferedVelocities,
-                                                                       self.bufferedPitchYawRoll,t)
+                        self.commandCompletedListener.commandCompleted(self.bufferedVelocities[:],
+                                                                       self.bufferedPitchYawRoll[:],t)
                     continue
                 elif velocities[0] == COMMAND_STARTED:
                      if self.commandCompletedListener != None:
@@ -112,8 +112,8 @@ class Trackball():
                     
             elif velocities == SERVO_SPEED_SET:
                 if self.commandCompletedListener != None:
-                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities,
-                                                                   self.bufferedPitchYawRoll,
+                    self.commandCompletedListener.commandCompleted(self.bufferedVelocities[:],
+                                                                   self.bufferedPitchYawRoll[:],
                                                                   -1)
                 continue
 
